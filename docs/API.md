@@ -6,9 +6,11 @@ Dokumen ini menjelaskan endpoint backend untuk sistem rental.
 
 - Framework: FastAPI
 - Prefix API v1: `/api/v1`
-- Format data: `application/json` (kecuali endpoint foto)
-- Database: SQLite (`rental.db`)
-- Auth: JWT Bearer (endpoint auth tersedia, endpoint lain saat ini masih public)
+- Data Format: `application/json` (kecuali upload foto via form-data jika nantinya diadaptasi, saat ini input foto item lewat `base64`)
+- Database Utama: PostgreSQL (Atau menggunakan SQLite `rental.db` untuk fallback lokal)
+- Storage Foto: Cloudinary (Atau menggunakan local binary db untuk fallback)
+- Autentikasi: JWT Bearer (Token-based)
+- Sistem Peran (RBAC): Admin & Staff
 
 Contoh base URL lokal:
 - `http://127.0.0.1:8000`
@@ -41,7 +43,8 @@ Response `200`:
 ```json
 {
   "access_token": "<jwt-token>",
-  "token_type": "bearer"
+  "token_type": "bearer",
+  "role": "ADMIN" // atau STAFF
 }
 ```
 
@@ -65,6 +68,7 @@ Response `200`:
   "username": "admin",
   "full_name": "Admin",
   "is_active": true,
+  "role": "ADMIN",
   "created_at": "2026-02-16T10:00:00.000000"
 }
 ```
@@ -116,7 +120,7 @@ Response `200`:
 }
 ```
 
-## Kategori
+## Kategori (Memerlukan Role ADMIN untuk modifikasi)
 
 ### GET `/api/v1/categories/`
 Ambil semua kategori.
@@ -189,10 +193,15 @@ Response `400` jika masih dipakai:
 }
 ```
 
-## Item
+## Item (Memerlukan Role ADMIN untuk modifikasi)
 
 ### GET `/api/v1/items/`
-Ambil semua item.
+Ambil daftar item.
+
+Query parameter opsional (Filter):
+- `q` (string): Cari berdasarkan nama item atau item code
+- `category_id` (int): Filter by category
+- `in_stock` (boolean): `true` untuk item dengan stok > 0, `false` untuk item dengan stok = 0
 
 Response `200`:
 ```json
@@ -205,6 +214,7 @@ Response `200`:
     "stock": 4,
     "created_at": "2026-02-16T10:00:00.000000",
     "has_photo": true,
+    "photo_url": "https://res.cloudinary.com/.../image.jpg",
     "photo_content_type": "image/jpeg"
   }
 ]
@@ -269,10 +279,17 @@ Response:
 - `200` dengan content-type sesuai `photo_content_type` (misal `image/jpeg`).
 - `404` jika item/foto tidak ada.
 
-## Loan (Daftar Barang Dipinjam)
+## Loan (Sirkulasi Pinjaman & Pengembalian)
 
 ### GET `/api/v1/loans/`
 Ambil semua data pinjaman.
+
+Query parameter opsional (Filter):
+- `borrower_name` (string): Cari berdasarkan nama peminjam
+- `item_code` (string): Cari berdasarkan kode item
+- `status` (string): filter berdasarkan status `active`, `returned`, atau `overdue`
+- `start_date` (date: YYYY-MM-DD): filter awal rentang tanggal peminjaman
+- `end_date` (date: YYYY-MM-DD): filter akhir rentang tanggal peminjaman
 
 Response `200`:
 ```json
@@ -375,6 +392,11 @@ Workflow frontend yang disarankan:
 1. Polling `GET /api/v1/loans/notifications`.
 2. Tampilkan notifikasi dan pertanyaan konfirmasi.
 3. Jika user jawab sudah kembali, panggil `PATCH /api/v1/loans/{loan_id}/confirm-return` dengan `is_returned=true`.
+
+## Report & Eksport
+
+### GET `/api/v1/reports/loans/export`
+Membutuhkan Auth Bearer dengan role **ADMIN**. Mengunduh seluruh histori peminjaman ke dalam format file Microsoft Excel (`.xlsx`). Backend menggunakan library openpyxl, akan mengembalikan `StreamingResponse`. Valid sebagai attachment header document.
 
 ## Ringkasan Status Code
 

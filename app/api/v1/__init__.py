@@ -5,6 +5,8 @@ from app.api.v1.categories import router as categories_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.items import router as items_router
 from app.api.v1.loans import router as loans_router
+from app.api.v1.reports import router as reports_router
+from app.api.v1.audits import router as audits_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth_router)
@@ -12,3 +14,5 @@ api_v1_router.include_router(categories_router)
 api_v1_router.include_router(dashboard_router)
 api_v1_router.include_router(items_router)
 api_v1_router.include_router(loans_router)
+api_v1_router.include_router(reports_router)
+api_v1_router.include_router(audits_router)

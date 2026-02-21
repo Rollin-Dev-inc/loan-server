@@ -4,3 +4,6 @@ sqlalchemy
 python-jose[cryptography]
 passlib
 python-dotenv
+psycopg2-binary
+cloudinary
+openpyxl

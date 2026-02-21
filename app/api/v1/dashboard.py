@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter
 from sqlalchemy import desc, func, select
 
-from app.api.deps import DBSession
+from app.api.deps import CurrentAdmin, DBSession
 from app.models import Item, Loan
 from app.schema import DashboardBorrowedItemRead, DashboardPeriod, DashboardSummaryRead
 
@@ -33,6 +33,7 @@ def _subtract_months(reference: date, months: int) -> date:
 @router.get("/", response_model=DashboardSummaryRead)
 def get_dashboard_summary(
     db: DBSession,
+    admin: CurrentAdmin,
     period: DashboardPeriod = DashboardPeriod.ONE_MONTH,
 ) -> DashboardSummaryRead:
     today = date.today()

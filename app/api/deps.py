@@ -40,4 +40,14 @@ def get_current_user(db: DBSession, token: TokenDep) -> User:
     return user
 
 
+def get_current_active_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges",
+        )
+    return user
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentAdmin = Annotated[User, Depends(get_current_active_admin)]

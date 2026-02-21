@@ -1,20 +1,21 @@
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
-from app.api.deps import DBSession
+from app.api.deps import CurrentAdmin, CurrentUser, DBSession
 from app.models import Category, Item
 from app.schema import CategoryCreate, CategoryRead, CategoryUpdate
+from app.services.audit_service import record_audit
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
 @router.get("/", response_model=list[CategoryRead])
-def list_categories(db: DBSession) -> list[Category]:
+def list_categories(db: DBSession, current_user: CurrentUser) -> list[Category]:
     return db.scalars(select(Category).order_by(Category.id)).all()
 
 
 @router.get("/{category_id}", response_model=CategoryRead)
-def get_category(category_id: int, db: DBSession) -> Category:
+def get_category(category_id: int, db: DBSession, current_user: CurrentUser) -> Category:
     category = db.get(Category, category_id)
     if category is None:
         raise HTTPException(
@@ -25,7 +26,7 @@ def get_category(category_id: int, db: DBSession) -> Category:
 
 
 @router.post("/", response_model=CategoryRead, status_code=status.HTTP_201_CREATED)
-def create_category(payload: CategoryCreate, db: DBSession) -> Category:
+def create_category(payload: CategoryCreate, db: DBSession, admin: CurrentAdmin) -> Category:
     existing = db.scalar(
         select(Category).where(func.lower(Category.name) == payload.name.lower())
     )
@@ -37,13 +38,15 @@ def create_category(payload: CategoryCreate, db: DBSession) -> Category:
 
     category = Category(name=payload.name)
     db.add(category)
+    db.flush()
+    record_audit(db, admin.id, admin.username, "CREATE", "CATEGORY", category.id, category.name)
     db.commit()
     db.refresh(category)
     return category
 
 
 @router.put("/{category_id}", response_model=CategoryRead)
-def update_category(category_id: int, payload: CategoryUpdate, db: DBSession) -> Category:
+def update_category(category_id: int, payload: CategoryUpdate, db: DBSession, admin: CurrentAdmin) -> Category:
     category = db.get(Category, category_id)
     if category is None:
         raise HTTPException(
@@ -64,13 +67,14 @@ def update_category(category_id: int, payload: CategoryUpdate, db: DBSession) ->
         )
 
     category.name = payload.name
+    record_audit(db, admin.id, admin.username, "UPDATE", "CATEGORY", category.id, category.name)
     db.commit()
     db.refresh(category)
     return category
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, db: DBSession) -> None:
+def delete_category(category_id: int, db: DBSession, admin: CurrentAdmin) -> None:
     category = db.get(Category, category_id)
     if category is None:
         raise HTTPException(
@@ -85,5 +89,6 @@ def delete_category(category_id: int, db: DBSession) -> None:
             detail="Category cannot be deleted because it is used by items",
         )
 
+    record_audit(db, admin.id, admin.username, "DELETE", "CATEGORY", category.id, category.name)
     db.delete(category)
     db.commit()

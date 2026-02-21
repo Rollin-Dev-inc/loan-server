@@ -18,6 +18,7 @@ class UserRead(BaseModel):
     username: str
     full_name: str | None
     is_active: bool
+    role: str
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

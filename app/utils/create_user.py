@@ -13,6 +13,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--username", help="Username for login. If omitted, prompt will be shown.")
     parser.add_argument("--password", help="User password. If omitted, prompt will be shown.")
     parser.add_argument("--full-name", default=None, help="Optional full name")
+    parser.add_argument("--role", default=None, choices=["ADMIN", "STAFF"], help="Role of the user (ADMIN or STAFF). If omitted, prompt will be shown.")
     parser.add_argument("--inactive", action="store_true", help="Create user as inactive")
     return parser.parse_args()
 
@@ -39,6 +40,16 @@ def _prompt_password() -> str:
         return password
 
 
+def _prompt_role() -> str:
+    while True:
+        role = input("Role [ADMIN/STAFF] (default: STAFF): ").strip().upper()
+        if not role:
+            return "STAFF"
+        if role in {"ADMIN", "STAFF"}:
+            return role
+        print("Invalid role. Please enter 'ADMIN' or 'STAFF'.")
+
+
 def main() -> None:
     args = _parse_args()
     username = args.username.strip() if args.username else _prompt_username()
@@ -52,6 +63,8 @@ def main() -> None:
     else:
         password = _prompt_password()
 
+    role = args.role.strip().upper() if args.role else _prompt_role()
+
     init_db()
     with SessionLocal() as db:
         existing = db.scalar(select(User).where(User.username == username))
@@ -63,11 +76,12 @@ def main() -> None:
             full_name=args.full_name,
             hashed_password=get_password_hash(password),
             is_active=not args.inactive,
+            role=role,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
-        print(f"User created: id={user.id}, username={user.username}, active={user.is_active}")
+        print(f"User created: id={user.id}, username={user.username}, role={user.role}, active={user.is_active}")
 
 
 if __name__ == "__main__":

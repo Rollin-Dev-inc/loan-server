@@ -20,6 +20,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.middleware("http")
+async def add_watermark_header(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Powered-By"] = "Rollindev | Pabloraka"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,

@@ -14,4 +14,5 @@ class User(Base):
     full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="STAFF")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)

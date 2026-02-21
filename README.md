@@ -1,114 +1,74 @@
-# Rental Backend API
+# General Inventory Loan System API
 
-Backend ini dibuat dengan FastAPI + SQLite untuk kebutuhan:
-- Login backend (JWT Bearer)
-- CRUD kategori
-- CRUD item (nama item, kode barang alphanumeric, kategori dari data kategori, tanggal otomatis saat create, stock, foto tersimpan di database)
-- CRUD daftar barang dipinjam + notifikasi keterlambatan
+Backend sistem rental ini telah diperbarui menjadi **sistem pinjam-meminjam (loan system)** general yang cocok untuk segala macam inventaris (mobil, perangkat komputer, buku, dsb). Dibangun dengan FastAPI dan SQLAlchemy.
 
-## Menjalankan backend
+## 🚀 Fitur Utama
+1. **Multi-Database Support**: Menggunakan PostgreSQL sebagai database utama dengan fallback otomatis ke SQLite jika `DATABASE_URL` tidak disetel di `.env`.
+2. **Cloudinary Storage**: File gambar/foto item diunggah ke Cloudinary. Jika `CLOUDINARY_URL` tidak terkonfigurasi, sistem akan *fallback* menyimpan gambar sebagai `base64` di database.
+3. **Role-Based Access Control (RBAC)**: Terdapat role `ADMIN` dan `STAFF`.
+   - `ADMIN` memiliki akses penuh terhadap pengelolaan kategori barang dan master data barang.
+   - `STAFF` bertugas mengamankan transaksi peminjaman (loan).
+4. **Excel Report Export**: Admin dapat mengunduh seluruh transaksi peminjaman dalam bentuk file `.xlsx`.
+5. **Audit Logging**: Semua perubahan (buat, ubah, hapus) di setiap modul tercatat rapi ke dalam tabel `AuditLog`.
+6. **Advanced Filter & Search**: Pengambilan data barang dan peminjaman dilengkapi integrasi query string untuk mencari, mem-filter stok, mengecek yang terlambat, dan sebagainya.
+
+## ⚙️ Menjalankan Backend
 
 1. Install dependency:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Salin env:
+2. Salin environment variabel:
 ```bash
-copy .env.example .env
+cp .env.example .env
 ```
+Isi konfigurasi database (PostgreSQL) dan Cloudinary (opsional). Jika tidak diset, sistem otomatis menggunakan setelan lokal/fallback.
 
-3. Buat akun login pertama:
+3. Buat akun login pertama (Admin atau Staff):
 ```bash
 python -m app.utils.create_user
 ```
 
-4. Jika sebelumnya sudah ada `rental.db` dari skema lama, hapus dulu file tersebut agar tabel baru terbentuk ulang.
-
-5. Jalankan server:
+4. Jalankan server lokal:
 ```bash
 uvicorn app.main:app --reload
 ```
 
-6. Buka dokumentasi:
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
+5. Buka Dokumentasi Interaktif (OpenAPI):
+- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
-## Endpoint
+## 📡 Endpoint API
 
-### Auth
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me` (Bearer token)
+### 🔐 Auth
+- `POST /api/v1/auth/login` - Login pengguna (dapatkan Token JWT)
+- `GET /api/v1/auth/me` - Periksa informasi profil aktif (Gunakan Token Bearer)
 
-### Category
+### 📦 Category (Memerlukan Akses ADMIN untuk Modifikasi)
 - `GET /api/v1/categories/`
 - `GET /api/v1/categories/{category_id}`
 - `POST /api/v1/categories/`
 - `PUT /api/v1/categories/{category_id}`
 - `DELETE /api/v1/categories/{category_id}`
 
-### Item
-- `GET /api/v1/items/`
+### 🖥️ Item (Memerlukan Akses ADMIN untuk Modifikasi)
+- `GET /api/v1/items/` *(Dilengkapi parameter search `q`, `category_id`, `in_stock`)*
 - `GET /api/v1/items/{item_id}`
 - `GET /api/v1/items/{item_id}/photo`
 - `POST /api/v1/items/`
 - `PUT /api/v1/items/{item_id}`
 - `DELETE /api/v1/items/{item_id}`
 
-### Loan (Daftar Barang Dipinjam)
-- `GET /api/v1/loans/`
+### 📝 Loan (Sirkulasi Pinjaman & Pengembalian)
+- `GET /api/v1/loans/` *(Dilengkapi parameter search `borrower_name`, `item_code`, `status`, `start_date`, `end_date`)*
 - `GET /api/v1/loans/{loan_id}`
-- `POST /api/v1/loans/`
-- `PUT /api/v1/loans/{loan_id}`
-- `PATCH /api/v1/loans/{loan_id}/confirm-return`
+- `POST /api/v1/loans/` - Mencatat pinjaman baru
+- `PUT /api/v1/loans/{loan_id}` - Membarui struktur pinjaman yang salah input
+- `PATCH /api/v1/loans/{loan_id}/confirm-return` - (Cepat) Konfirmasi barang dikembalikan
 - `DELETE /api/v1/loans/{loan_id}`
-- `GET /api/v1/loans/notifications` (warning jatuh tempo untuk frontend)
+- `GET /api/v1/loans/notifications` - Pengecekan barang yang lewat jatuh tempo pengembalian
 
-## Contoh payload
-
-Create category:
-```json
-{
-  "name": "Mobil SUV"
-}
-```
-
-Login:
-```json
-{
-  "username": "admin",
-  "password": "admin123"
-}
-```
-
-Create item:
-```json
-{
-  "item_code": "SUV001",
-  "name": "Toyota Fortuner",
-  "category_id": 1,
-  "stock": 4,
-  "photo_base64": "data:image/jpeg;base64,/9j/4AAQSk...",
-  "photo_content_type": "image/jpeg"
-}
-```
-
-Create loan:
-```json
-{
-  "borrower_name": "Budi",
-  "item_id": 1,
-  "duration_days": 3,
-  "borrowed_at": "2026-02-16",
-  "price_to_pay": 350000
-}
-```
-
-Konfirmasi pengembalian (dari notifikasi frontend):
-```json
-{
-  "is_returned": true
-}
-```
-
-`created_at` item dan `due_at` loan dihitung otomatis oleh backend.
+### 📊 Dashboard & Reports (Akses Tertentu)
+- `GET /api/v1/dashboard/` - (Admin Only) Ringkasan statistik performa sewa/pinjam
+- `GET /api/v1/reports/loans/export` - (Admin Only) Download Laporan Excel
