@@ -1,74 +1,60 @@
 # General Inventory Loan System API
 
-Backend sistem rental ini telah diperbarui menjadi **sistem pinjam-meminjam (loan system)** general yang cocok untuk segala macam inventaris (mobil, perangkat komputer, buku, dsb). Dibangun dengan FastAPI dan SQLAlchemy.
+Sistem Backend yang bertenaga FastAPI ini dibangun untuk menangani siklus pinjam-meminjam (rental/loan) segala macam inventaris (kendaraan, elektronik, arsip, dsb). Dibekali dengan arsitektur Database Relasional kokoh dan lapisan keamanan ganda.
 
-## 🚀 Fitur Utama
-1. **Multi-Database Support**: Menggunakan PostgreSQL sebagai database utama dengan fallback otomatis ke SQLite jika `DATABASE_URL` tidak disetel di `.env`.
-2. **Cloudinary Storage**: File gambar/foto item diunggah ke Cloudinary. Jika `CLOUDINARY_URL` tidak terkonfigurasi, sistem akan *fallback* menyimpan gambar sebagai `base64` di database.
-3. **Role-Based Access Control (RBAC)**: Terdapat role `ADMIN` dan `STAFF`.
-   - `ADMIN` memiliki akses penuh terhadap pengelolaan kategori barang dan master data barang.
-   - `STAFF` bertugas mengamankan transaksi peminjaman (loan).
-4. **Excel Report Export**: Admin dapat mengunduh seluruh transaksi peminjaman dalam bentuk file `.xlsx`.
-5. **Audit Logging**: Semua perubahan (buat, ubah, hapus) di setiap modul tercatat rapi ke dalam tabel `AuditLog`.
-6. **Advanced Filter & Search**: Pengambilan data barang dan peminjaman dilengkapi integrasi query string untuk mencari, mem-filter stok, mengecek yang terlambat, dan sebagainya.
+## 🚀 Fitur Utama & Keunggulan
+1. **Multi-Database Support**: Menggunakan **PostgreSQL** sebagai database utama dengan fallback otomatis ke **SQLite** lokal jika `DATABASE_URL` tidak disetel di `.env`. Memiliki dukungan integritas relasi yang tinggi termasuk mekanisme *Soft-Delete*.
+2. **Cloudinary Storage Multidimensi**: Mendukung unggahan banyak stok gambar (Multi-Photo) per Item secara bersamaan ke Cloudinary. Mendukung penyusutan otomatis *(fallback)* ke wujud *binary string Base64* SQLite jika jaringan awan terputus.
+3. **Role-Based Access Control (RBAC)**: Pemisahan yurisdiksi ketat dengan dua Role:
+   - `ADMIN`: Menguasai modifikasi Master Barang, Pemeliharaan Kategori, Manajemen Foto, Akses Dasbor Keuangan Terpusat, serta Jejak Log Audit.
+   - `STAFF`: Pasukan Lapangan yang fokus memfasilitasi formulir peminjaman, pelacakan jatuh tempo, dan pengembalian stok barang.
+4. **Excel Report Export**: Mesin Laporan (`openpyxl`) agar *Admin* dapat merangkum dan mengunduh seluruh transaksi periode peminjaman dalam berkas *Spreadsheet* (`.xlsx`).
+5. **Auto Stock Adjustment**: Validasi stok yang saling terkait. Meminjam barang akan mengurangi stok aslinya. Pengembalian otomatis merestorasi kuantitas stok di Gudang Master.
+6. **Audit & Activity Logging**: Jejak tak terlihat dari semua perubahan (Hapus Barang, Edit Pinjaman, Pembaruan Status) akan tercatat sekuensial permanen ke tabel `AuditLog`.
+7. **Pencarian Agresif & Filter Lanjut**: Modul pengambilan data cerdas. Anda dapat membedah data berdasar keyword, ID kategori, ketersediaan sisa stok `in_stock`, nama peminjam, hingga rentang waktu.
+8. **Proteksi API Tingkat Rendah (Watermark)**: Penempelan hak cipta absolut lewat modul *Custom Middleware* HTTP. Semua amplop respons server disandarkan header paten `X-Powered-By: Rollindev | Pabloraka` yang tidak dapat dirusak dari _Frontend_.
 
-## ⚙️ Menjalankan Backend
+---
 
-1. Install dependency:
+## ⚙️ Persiapan & Menjalankan Backend
+
+### 1. Prasyarat Instalasi
+Sistem ini menggunakan ekosistem Python 3.10+.
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Salin environment variabel:
+### 2. Konfigurasi Lingkungan (`.env`)
+Menyambungkan Database dan Penyimpanan Gambar:
 ```bash
 cp .env.example .env
 ```
-Isi konfigurasi database (PostgreSQL) dan Cloudinary (opsional). Jika tidak diset, sistem otomatis menggunakan setelan lokal/fallback.
+_(Sunting isi fail `.env` jika Anda mempunyai koneksi otentik PostgreSQL/Cloudinary)_
 
-3. Buat akun login pertama (Admin atau Staff):
+### 3. Migrasi & Registrasi Perdana
+Jalankan utilitas pra-instal untuk menginisialisasi tabel database dan melahirkan akun Root/Staf pertama:
 ```bash
 python -m app.utils.create_user
 ```
 
-4. Jalankan server lokal:
+### 4. Nyalakan Mesin Server
 ```bash
 uvicorn app.main:app --reload
 ```
 
-5. Buka Dokumentasi Interaktif (OpenAPI):
-- Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+---
 
-## 📡 Endpoint API
+## 📡 Rute Singkat Endpoint API
 
-### 🔐 Auth
-- `POST /api/v1/auth/login` - Login pengguna (dapatkan Token JWT)
-- `GET /api/v1/auth/me` - Periksa informasi profil aktif (Gunakan Token Bearer)
+Interactive Documentation Framework (Swagger UI) telah disediakan otomatis di:
+👉 **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)**
 
-### 📦 Category (Memerlukan Akses ADMIN untuk Modifikasi)
-- `GET /api/v1/categories/`
-- `GET /api/v1/categories/{category_id}`
-- `POST /api/v1/categories/`
-- `PUT /api/v1/categories/{category_id}`
-- `DELETE /api/v1/categories/{category_id}`
-
-### 🖥️ Item (Memerlukan Akses ADMIN untuk Modifikasi)
-- `GET /api/v1/items/` *(Dilengkapi parameter search `q`, `category_id`, `in_stock`)*
-- `GET /api/v1/items/{item_id}`
-- `GET /api/v1/items/{item_id}/photo`
-- `POST /api/v1/items/`
-- `PUT /api/v1/items/{item_id}`
-- `DELETE /api/v1/items/{item_id}`
-
-### 📝 Loan (Sirkulasi Pinjaman & Pengembalian)
-- `GET /api/v1/loans/` *(Dilengkapi parameter search `borrower_name`, `item_code`, `status`, `start_date`, `end_date`)*
-- `GET /api/v1/loans/{loan_id}`
-- `POST /api/v1/loans/` - Mencatat pinjaman baru
-- `PUT /api/v1/loans/{loan_id}` - Membarui struktur pinjaman yang salah input
-- `PATCH /api/v1/loans/{loan_id}/confirm-return` - (Cepat) Konfirmasi barang dikembalikan
-- `DELETE /api/v1/loans/{loan_id}`
-- `GET /api/v1/loans/notifications` - Pengecekan barang yang lewat jatuh tempo pengembalian
-
-### 📊 Dashboard & Reports (Akses Tertentu)
-- `GET /api/v1/dashboard/` - (Admin Only) Ringkasan statistik performa sewa/pinjam
-- `GET /api/v1/reports/loans/export` - (Admin Only) Download Laporan Excel
+| Grup | Endpoint Utama | Deskripsi Logika Tambahan | Hak Akses |
+|-------|-------|-------|-------|
+| **Kunci Auth** | `POST /login`, `GET /me` | Pengesahan Token Standard Bearer JWT. | Publik / General |
+| **Kategori** | `GET`, `POST`, `PUT`, `DELETE` *(/categories)* | Kategori barang tidak bisa dihapus sepihak bila masih digunakan unit Item (Restriksi Integritas). | Hanya Admin |
+| **Benda Fisik** | `GET`, `POST`, `PUT`, `DELETE` *(/items)* | Integrasi _Soft-Delete_ mutakhir: Item valid dihapus selama tidak *sedang* dipinjam. Riwayat _Loans_ lawas dibalikkan *Null* sehingga histori finansial kebal. | Hanya Admin / Staff View-Only |
+| **Logistik Foto** | `GET /items/{id}/photo` (ataupun `/photos/{id}`) | Saluran umum publik (Tanpa Auth) untuk mengambil profil dan galeri tambahan wujud barang dari Cloud/Lokal. | Terbuka |
+| **Peminjaman** | `GET`, `POST`, `PUT`, `DELETE`, `PATCH` *(/loans)* | Mencegah status Un-return jika item asli musnah. Terdapat modul `/notifications` yang memburu keterlambatan otomatis. | Admin & Staff |
+| **Logistik Audit**| `GET /audits/` | Catatan aktivitas harian. _Immutable log_ perihal siapa merombak apa. | Hanya Admin |
+| **Dasbor Finansial**| `GET /dashboard/`, `GET /reports/loans/export` | Penghitungan kalkulatif margin Keuangan bulanan serta pencetakan rekap Laporan Excel murni | Hanya Admin |
