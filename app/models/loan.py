@@ -11,7 +11,7 @@ class Loan(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     borrower_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
-    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"), nullable=False, index=True)
+    item_id: Mapped[int | None] = mapped_column(ForeignKey("items.id", ondelete="SET NULL"), nullable=True, index=True)
     item_code: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
     borrowed_at: Mapped[date] = mapped_column(Date, nullable=False)

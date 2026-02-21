@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class LoanBase(BaseModel):
     borrower_name: str = Field(min_length=1, max_length=120)
-    item_id: int
+    item_id: int | None = None
     item_code: str | None = Field(default=None, min_length=3, max_length=40)
     duration_days: int = Field(ge=1)
     borrowed_at: date
@@ -47,7 +47,7 @@ class LoanReturnConfirmation(BaseModel):
 class LoanRead(BaseModel):
     id: int
     borrower_name: str
-    item_id: int
+    item_id: int | None
     item_code: str
     duration_days: int
     borrowed_at: date
@@ -63,7 +63,7 @@ class LoanRead(BaseModel):
 class LoanNotificationRead(BaseModel):
     loan_id: int
     borrower_name: str
-    item_id: int
+    item_id: int | None
     item_code: str
     due_at: date
     days_overdue: int

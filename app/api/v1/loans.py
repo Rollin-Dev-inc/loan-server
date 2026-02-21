@@ -87,7 +87,7 @@ def get_loan(loan_id: int, db: DBSession, current_user: CurrentUser) -> Loan:
     if loan is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Loan not found",
+            detail="Pinjaman tidak ditemukan",
         )
     return loan
 
@@ -98,18 +98,18 @@ def create_loan(payload: LoanCreate, db: DBSession, current_user: CurrentUser) -
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item not found",
+            detail="Item tidak ditemukan",
         )
     if payload.item_code is not None and payload.item_code != item.item_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item code does not match selected item",
+            detail="Kode item tidak cocok dengan item yang dipilih",
         )
     if not payload.is_returned:
         if item.stock <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Item is currently out of stock",
+                detail="Item saat ini kehabisan stok",
             )
         item.stock -= 1
 
@@ -138,7 +138,7 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: DBSession, current_user: 
     if loan is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Loan not found",
+            detail="Pinjaman tidak ditemukan",
         )
 
     if payload.item_id is not None:
@@ -146,12 +146,12 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: DBSession, current_user: 
         if item is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Item not found",
+                detail="Item tidak ditemukan",
             )
         if payload.item_code is not None and payload.item_code != item.item_code:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Item code does not match selected item",
+                detail="Kode item tidak cocok dengan item yang dipilih",
             )
         # If changing items and the loan is currently active, adjust stocks
         if loan.item_id != payload.item_id and not loan.is_returned:
@@ -159,7 +159,7 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: DBSession, current_user: 
             if item.stock <= 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="The new selected item is out of stock",
+                    detail="Item baru yang dipilih kehabisan stok",
                 )
             if old_item:
                 old_item.stock += 1
@@ -170,7 +170,7 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: DBSession, current_user: 
     elif payload.item_code is not None and payload.item_code != loan.item_code:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item code does not match selected item",
+            detail="Kode item tidak cocok dengan item yang dipilih",
         )
 
     if payload.borrower_name is not None:
@@ -197,9 +197,14 @@ def update_loan(loan_id: int, payload: LoanUpdate, db: DBSession, current_user: 
                 if item_ref.stock <= 0:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Cannot reactivate loan. Item is currently out of stock",
+                        detail="Tidak dapat mengaktifkan kembali pinjaman. Item saat ini kehabisan stok",
                     )
                 item_ref.stock -= 1
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Tidak dapat mengaktifkan kembali pinjaman. Item asli telah dihapus.",
+                )
 
         loan.is_returned = payload.is_returned
         loan.returned_at = datetime.utcnow() if payload.is_returned else None
@@ -217,7 +222,7 @@ def confirm_return(loan_id: int, payload: LoanReturnConfirmation, db: DBSession,
     if loan is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Loan not found",
+            detail="Pinjaman tidak ditemukan",
         )
 
     if loan.is_returned != payload.is_returned:
@@ -232,9 +237,14 @@ def confirm_return(loan_id: int, payload: LoanReturnConfirmation, db: DBSession,
                 if item.stock <= 0:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Cannot cancel return. Item is currently out of stock",
+                        detail="Tidak dapat membatalkan pengembalian. Item saat ini kehabisan stok",
                     )
                 item.stock -= 1
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Tidak dapat membatalkan pengembalian. Item asli telah dihapus.",
+                )
 
     loan.is_returned = payload.is_returned
     loan.returned_at = datetime.utcnow() if payload.is_returned else None
@@ -250,7 +260,7 @@ def delete_loan(loan_id: int, db: DBSession, current_user: CurrentUser) -> None:
     if loan is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Loan not found",
+            detail="Pinjaman tidak ditemukan",
         )
         
     if not loan.is_returned:

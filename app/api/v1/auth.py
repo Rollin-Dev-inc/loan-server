@@ -15,12 +15,12 @@ def login(payload: LoginRequest, db: DBSession) -> TokenRead:
     if user is None or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail="Nama pengguna atau kata sandi tidak valid",
         )
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is inactive",
+            detail="Pengguna tidak aktif",
         )
 
     return TokenRead(access_token=create_access_token(subject=user.username))

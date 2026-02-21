@@ -48,7 +48,7 @@ def get_item(item_id: int, db: DBSession, current_user: CurrentUser) -> Item:
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Item tidak ditemukan",
         )
     return item
 
@@ -59,7 +59,7 @@ def create_item(payload: ItemCreate, db: DBSession, admin: CurrentAdmin) -> Item
     if category is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Category not found",
+            detail="Kategori tidak ditemukan",
         )
 
     existing_code = db.scalar(
@@ -68,7 +68,7 @@ def create_item(payload: ItemCreate, db: DBSession, admin: CurrentAdmin) -> Item
     if existing_code is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item code already exists",
+            detail="Kode item sudah digunakan",
         )
 
     photos = payload.photos_base64 or []
@@ -118,7 +118,7 @@ def update_item(item_id: int, payload: ItemUpdate, db: DBSession, admin: Current
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Item tidak ditemukan",
         )
 
     if payload.category_id is not None:
@@ -126,7 +126,7 @@ def update_item(item_id: int, payload: ItemUpdate, db: DBSession, admin: Current
         if category is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Category not found",
+                detail="Kategori tidak ditemukan",
             )
         item.category_id = payload.category_id
 
@@ -140,7 +140,7 @@ def update_item(item_id: int, payload: ItemUpdate, db: DBSession, admin: Current
         if existing_code is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Item code already exists",
+                detail="Kode item sudah digunakan",
             )
         item.item_code = payload.item_code
 
@@ -194,15 +194,22 @@ def delete_item(item_id: int, db: DBSession, admin: CurrentAdmin) -> None:
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Item tidak ditemukan",
         )
 
-    has_loan = db.scalar(select(Loan.id).where(Loan.item_id == item_id).limit(1))
-    if has_loan is not None:
+    has_active_loan = db.scalar(
+        select(Loan.id).where(Loan.item_id == item_id, Loan.is_returned == False).limit(1)
+    )
+    if has_active_loan is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Item cannot be deleted because it is used by loan data",
+            detail="Item tidak dapat dihapus karena saat ini masih aktif dalam peminjaman",
         )
+
+    # Soft delete: Unlink historical returned loans from this item
+    historical_loans = db.execute(select(Loan).where(Loan.item_id == item_id)).scalars().all()
+    for h_loan in historical_loans:
+        h_loan.item_id = None
 
     if item.photo_url:
         destroy_image(item.item_code)
@@ -222,7 +229,7 @@ def get_item_photo(item_id: int, db: DBSession) -> Response:
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Item tidak ditemukan",
         )
     if item.photo_url:
         return RedirectResponse(url=item.photo_url)
@@ -230,7 +237,7 @@ def get_item_photo(item_id: int, db: DBSession) -> Response:
     if not item.photo_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item photo not found",
+            detail="Foto item tidak ditemukan",
         )
     return Response(content=item.photo_data, media_type=item.photo_content_type)
 
@@ -241,14 +248,14 @@ def get_item_photo_additional(item_id: int, photo_id: int, db: DBSession) -> Res
     if item is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Item tidak ditemukan",
         )
         
     photo = db.get(ItemPhoto, photo_id)
     if photo is None or photo.item_id != item_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Photo not found",
+            detail="Foto tidak ditemukan",
         )
         
     if photo.photo_url:
@@ -257,6 +264,6 @@ def get_item_photo_additional(item_id: int, photo_id: int, db: DBSession) -> Res
     if not photo.photo_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item photo data not found",
+            detail="Data foto item tidak ditemukan",
         )
     return Response(content=photo.photo_data, media_type=photo.photo_content_type)

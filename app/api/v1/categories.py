@@ -20,7 +20,7 @@ def get_category(category_id: int, db: DBSession, current_user: CurrentUser) -> 
     if category is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Category not found",
+            detail="Kategori tidak ditemukan",
         )
     return category
 
@@ -33,7 +33,7 @@ def create_category(payload: CategoryCreate, db: DBSession, admin: CurrentAdmin)
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Category name already exists",
+            detail="Nama kategori sudah digunakan",
         )
 
     category = Category(name=payload.name)
@@ -51,7 +51,7 @@ def update_category(category_id: int, payload: CategoryUpdate, db: DBSession, ad
     if category is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Category not found",
+            detail="Kategori tidak ditemukan",
         )
 
     existing = db.scalar(
@@ -63,7 +63,7 @@ def update_category(category_id: int, payload: CategoryUpdate, db: DBSession, ad
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Category name already exists",
+            detail="Nama kategori sudah digunakan",
         )
 
     category.name = payload.name
@@ -79,14 +79,14 @@ def delete_category(category_id: int, db: DBSession, admin: CurrentAdmin) -> Non
     if category is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Category not found",
+            detail="Kategori tidak ditemukan",
         )
 
     has_item = db.scalar(select(Item.id).where(Item.category_id == category_id).limit(1))
     if has_item is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Category cannot be deleted because it is used by items",
+            detail="Kategori tidak dapat dihapus karena sedang digunakan oleh item",
         )
 
     record_audit(db, admin.id, admin.username, "DELETE", "CATEGORY", category.id, category.name)
